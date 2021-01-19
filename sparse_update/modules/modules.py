@@ -40,21 +40,6 @@ class SST2Module(LightningModule):
         attention_mask = attention_mask[:, :max_len]
         token_type_ids = token_type_ids[:, :max_len]
 
-        # data, labels = batch
-
-        # data = self.tokenizer(
-        #     list(data),
-        #     padding=True,
-        #     truncation=True,
-        #     return_tensors="pt",
-        # )
-
-        # input_ids = data["input_ids"].to(labels.device)
-        # attention_mask = data["attention_mask"].to(labels.device)
-        # token_type_ids = data["token_type_ids"].to(labels.device)
-
-        # print(input_ids.shape, attention_mask.shape, token_type_ids.shape)
-
         return_dict = self.model(
             input_ids, attention_mask, token_type_ids, return_dict=True, labels=labels
         )
@@ -63,11 +48,7 @@ class SST2Module(LightningModule):
 
         predictions = torch.argmax(return_dict["logits"], -1)
 
-        acc = predictions == labels
-
         metric.add_batch(predictions=predictions, references=labels)
-
-        # print(mode)
 
         return {"loss": return_dict["loss"]}
 
@@ -78,7 +59,23 @@ class SST2Module(LightningModule):
         return self.shared_step(batch, batch_idx, self.val_metric, "val")
 
     def test_step(self, batch, batch_idx):
-        return self.shared_step(batch, batch_idx, self.test_metric, "test")
+        input_ids, attention_mask, token_type_ids, labels = batch
+
+        # truncate the data to maximum length within this batch
+
+        max_len = attention_mask.sum(-1).max()
+
+        input_ids = input_ids[:, :max_len]
+        attention_mask = attention_mask[:, :max_len]
+        token_type_ids = token_type_ids[:, :max_len]
+
+        return_dict = self.model(
+            input_ids, attention_mask, token_type_ids, return_dict=True
+        )
+
+        predictions = torch.argmax(return_dict["logits"], -1)
+
+        return {"predictions", predictions}
 
     def shared_epoch_end(self, outputs, metric, mode="train"):
         # acc = torch.cat([o["acc"] for o in outputs], 0)
@@ -95,7 +92,7 @@ class SST2Module(LightningModule):
         self.shared_epoch_end(outputs, self.val_metric, "val")
 
     def test_epoch_end(self, outputs):
-        self.shared_epoch_end(outputs, self.test_metric, "test")
+        predictions = torch.cat([o for o in outputs], 0)
 
     def configure_optimizers(self):
         no_decay = ["bias", "LayerNorm.weight"]
@@ -118,7 +115,7 @@ class SST2Module(LightningModule):
             },
         ]
 
-        num_training_steps = len(self.train_dataloader().dataset) * self.args.max_epochs
+        num_training_steps = len(self.train_dataloader()) * self.args.max_epochs
 
         optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=self.args.lr)
 
