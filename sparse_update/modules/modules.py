@@ -28,28 +28,28 @@ class SST2Module(LightningModule):
         self.test_metric = load_metric("glue", self.name)
 
     def shared_step(self, batch, batch_idx, metric, mode="train"):
-        input_ids, attention_mask, token_type_ids, labels = batch
+        # input_ids, attention_mask, token_type_ids, labels = batch
 
         # truncate the data to maximum length within this batch
 
-        max_len = attention_mask.sum(-1).max()
+        # max_len = attention_mask.sum(-1).max()
 
-        input_ids = input_ids[:, :max_len]
-        attention_mask = attention_mask[:, :max_len]
-        token_type_ids = token_type_ids[:, :max_len]
+        # input_ids = input_ids[:, :max_len]
+        # attention_mask = attention_mask[:, :max_len]
+        # token_type_ids = token_type_ids[:, :max_len]
 
-        # data, labels = batch
+        data, labels = batch
 
-        # data = self.tokenizer(
-        #     list(data),
-        #     padding=True,
-        #     truncation=True,
-        #     return_tensors="pt",
-        # )
+        data = self.tokenizer(
+            list(data),
+            padding=True,
+            truncation=True,
+            return_tensors="pt",
+        )
 
-        # input_ids = data["input_ids"].to(labels.device)
-        # attention_mask = data["attention_mask"].to(labels.device)
-        # token_type_ids = data["token_type_ids"].to(labels.device)
+        input_ids = data["input_ids"].to(labels.device)
+        attention_mask = data["attention_mask"].to(labels.device)
+        token_type_ids = data["token_type_ids"].to(labels.device)
 
         # print(input_ids.shape, attention_mask.shape, token_type_ids.shape)
 

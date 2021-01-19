@@ -88,24 +88,24 @@ class SST2(GlueDataModule):
             data = self.dset[idx]["sentence"]
             label = self.dset[idx]["label"]
 
-            data_dict = self.tokenizer(
-                data,
-                max_length=512,
-                padding="max_length",
-                truncation=True,
-                return_tensors="pt",
-            )
+            # data_dict = self.tokenizer(
+            #     data,
+            #     max_length=512,
+            #     padding="max_length",
+            #     truncation=True,
+            #     return_tensors="pt",
+            # )
 
             label = torch.LongTensor([label])
 
-            return (
-                data_dict["input_ids"].squeeze(0),
-                data_dict["attention_mask"].squeeze(0),
-                data_dict["token_type_ids"].squeeze(0),
-                label.squeeze(0),
-            )
+            # return (
+            #     data_dict["input_ids"].squeeze(0),
+            #     data_dict["attention_mask"].squeeze(0),
+            #     data_dict["token_type_ids"].squeeze(0),
+            #     label.squeeze(0),
+            # )
 
-            # return data, label.squeeze(0)
+            return data, label.squeeze(0)
 
         def __len__(self):
             return len(self.dset)
