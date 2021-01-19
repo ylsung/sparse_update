@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     checkpoint_callback = ModelCheckpoint(monitor="val/acc", mode="max")
     # trainer = Trainer(max_epochs=3)
-    trainer = Trainer(max_epochs=3, callbacks=[checkpoint_callback])
+    trainer = Trainer(gpus=0, max_epochs=3, callbacks=[checkpoint_callback])
     trainer.fit(model, data_module)
 
     trainer.test(datamodule=data_module)
