@@ -96,4 +96,23 @@ class SST2Module(LightningModule):
         self.shared_epoch_end(outputs, self.test_metric, "test")
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=3e-5)
+        no_decay = ["bias", "LayerNorm.weight"]
+        optimizer_grouped_parameters = [
+            {
+                "params": [
+                    p
+                    for n, p in self.named_parameters()
+                    if not any(nd in n for nd in no_decay)
+                ],
+                "weight_decay": 1e-2,
+            },
+            {
+                "params": [
+                    p
+                    for n, p in self.named_parameters()
+                    if any(nd in n for nd in no_decay)
+                ],
+                "weight_decay": 0.0,
+            },
+        ]
+        return torch.optim.AdamW(optimizer_grouped_parameters, lr=1e-5)
