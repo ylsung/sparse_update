@@ -51,6 +51,8 @@ class SST2Module(LightningModule):
         attention_mask = data["attention_mask"].to(labels.device)
         token_type_ids = data["token_type_ids"].to(labels.device)
 
+        print(labels.device)
+
         # print(input_ids.shape, attention_mask.shape, token_type_ids.shape)
 
         return_dict = self.model(
