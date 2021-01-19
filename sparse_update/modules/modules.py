@@ -4,14 +4,16 @@ from transformers import BertForSequenceClassification
 from pytorch_lightning import LightningModule
 from .register import register
 from datasets import load_metric
+from sparse_update.utilities.optimization import get_scheduler
 
 
 @register
 class SST2Module(LightningModule):
     name = "sst2"
 
-    def __init__(self, config_name, tokenizer):
+    def __init__(self, args, config_name, tokenizer):
         super().__init__()
+        self.args = args
         self.model = BertForSequenceClassification.from_pretrained(config_name)
         self.tokenizer = tokenizer
 
@@ -104,7 +106,7 @@ class SST2Module(LightningModule):
                     for n, p in self.named_parameters()
                     if not any(nd in n for nd in no_decay)
                 ],
-                "weight_decay": 1e-2,
+                "weight_decay": self.args.wd,
             },
             {
                 "params": [
@@ -115,4 +117,14 @@ class SST2Module(LightningModule):
                 "weight_decay": 0.0,
             },
         ]
-        return torch.optim.AdamW(optimizer_grouped_parameters, lr=1e-5)
+
+        num_training_steps = len(self.train_dataloader().dataset) * self.args.max_epochs
+
+        optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=self.args.lr)
+
+        scheduler_func = get_scheduler(self.args.lr_scheduler_type)
+        scheduler = scheduler_func(
+            optimizer, self.args.num_warmup_steps, num_training_steps, last_epoch=-1
+        )
+
+        return [optimizer], [scheduler]
