@@ -53,6 +53,11 @@ class SST2Module(LightningModule):
         return {"loss": return_dict["loss"]}
 
     def training_step(self, batch, batch_idx):
+        self.log("lr", self.trainer.lr_schedulers[0]["scheduler"].get_last_lr()[0])
+
+        print(self.trainer.lr_schedulers[0])
+        print(self.trainer.lr_schedulers[0]["scheduler"].state_dict())
+
         return self.shared_step(batch, batch_idx, self.train_metric, "train")
 
     def validation_step(self, batch, batch_idx):
@@ -75,7 +80,7 @@ class SST2Module(LightningModule):
 
         predictions = torch.argmax(return_dict["logits"], -1)
 
-        return {"predictions", predictions}
+        return {"predictions": predictions}
 
     def shared_epoch_end(self, outputs, metric, mode="train"):
         # acc = torch.cat([o["acc"] for o in outputs], 0)
@@ -92,7 +97,18 @@ class SST2Module(LightningModule):
         self.shared_epoch_end(outputs, self.val_metric, "val")
 
     def test_epoch_end(self, outputs):
-        predictions = torch.cat([o for o in outputs], 0)
+        predictions = torch.cat([o["predictions"] for o in outputs], 0)
+
+        out = "index\tprediction\n"
+
+        predictions = predictions.cpu().numpy().tolist()
+        indices = list(range(len(predictions)))
+
+        for i, p in zip(indices, predictions):
+            out += f"{i}\t{p}\n"
+
+        with open(f"{self.name}.tsv", "w") as record_file:
+            record_file.write(out)
 
     def configure_optimizers(self):
         no_decay = ["bias", "LayerNorm.weight"]
@@ -115,7 +131,9 @@ class SST2Module(LightningModule):
             },
         ]
 
-        num_training_steps = len(self.train_dataloader()) * self.args.max_epochs
+        # num_training_steps = len(self.train_dataloader()) * self.args.max_epochs
+
+        num_training_steps = self.args.max_epochs
 
         optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=self.args.lr)
 
