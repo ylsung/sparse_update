@@ -6,6 +6,9 @@ from .register import register
 from datasets import load_metric
 from sparse_update.utilities.optimization import get_scheduler
 
+# Map the module name to file name (.tsv file)
+FILE_NAME_MAP = {"sst2": "SST-2"}
+
 
 @register
 class SST2Module(LightningModule):
@@ -104,7 +107,8 @@ class SST2Module(LightningModule):
         for i, p in zip(indices, predictions):
             out += f"{i}\t{p}\n"
 
-        with open(f"{self.name}.tsv", "w") as record_file:
+        file_name = f"{FILE_NAME_MAP[self.name]}.tsv"
+        with open(file_name, "w") as record_file:
             record_file.write(out)
 
     def configure_optimizers(self):
@@ -128,9 +132,9 @@ class SST2Module(LightningModule):
             },
         ]
 
-        # num_training_steps = len(self.train_dataloader()) * self.args.max_epochs
+        num_training_steps = len(self.train_dataloader()) * self.args.max_epochs
 
-        num_training_steps = self.args.max_epochs
+        # num_training_steps = self.args.max_epochs
 
         optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=self.args.lr)
 
@@ -138,5 +142,13 @@ class SST2Module(LightningModule):
         scheduler = scheduler_func(
             optimizer, self.args.num_warmup_steps, num_training_steps, last_epoch=-1
         )
+
+        scheduler = {
+            "scheduler": scheduler,
+            "monitor": "metric_to_track",
+            "interval": "step",
+            "frequency": 1,
+            "strict": True,
+        }
 
         return [optimizer], [scheduler]
