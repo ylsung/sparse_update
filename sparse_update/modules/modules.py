@@ -55,9 +55,6 @@ class SST2Module(LightningModule):
     def training_step(self, batch, batch_idx):
         self.log("lr", self.trainer.lr_schedulers[0]["scheduler"].get_last_lr()[0])
 
-        print(self.trainer.lr_schedulers[0])
-        print(self.trainer.lr_schedulers[0]["scheduler"].state_dict())
-
         return self.shared_step(batch, batch_idx, self.train_metric, "train")
 
     def validation_step(self, batch, batch_idx):
