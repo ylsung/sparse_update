@@ -1,4 +1,8 @@
 # Sparse Update
+Sparse updates is a technique that train neural networks only updating few parameters.
+
+## Code format
+We follow the `black` format.
 
 ## Usage
 
