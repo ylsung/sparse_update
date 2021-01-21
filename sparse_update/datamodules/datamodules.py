@@ -6,9 +6,21 @@ from datasets import load_dataset
 
 
 class GlueDataModule(LightningDataModule):
+    """
+    PyTorch Lightning module for Glue dataset. Need to implement
+    `CustomDataset` in child classes.
+    """
+
     name: str
 
     def __init__(self, batch_size, num_workers, tokenizer):
+        """
+        Args:
+            batch_size: size of each batch
+            num_workers: how many workers used to extract data
+            tokenizer: Hugginface tokenizer used to tokenizer the texts into
+                       tensors.
+        """
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -26,11 +38,13 @@ class GlueDataModule(LightningDataModule):
             dataset["test"],
         )
 
+        # Create the datasets
         self.train_dset = self.CustomDataset(self.train_dset, self.tokenizer)
         self.val_dset = self.CustomDataset(self.val_dset, self.tokenizer)
         self.test_dset = self.CustomDataset(self.test_dset, self.tokenizer)
 
     def train_dataloader(self):
+        # Only train data will be shuffled
         return DataLoader(
             self.train_dset,
             batch_size=self.batch_size,
@@ -69,7 +83,7 @@ class GlueDataModule(LightningDataModule):
 class SST2(GlueDataModule):
     """
     Data module for sst2 dataset. Must initiate `name`
-    before __init__() for register the class.
+    before __init__() for registering the class.
     """
 
     name = "sst2"
@@ -88,6 +102,8 @@ class SST2(GlueDataModule):
             data = self.dset[idx]["sentence"]
             label = self.dset[idx]["label"]
 
+            # Pad the tensor to max length to make data loaders be able to
+            # concatenate aggregated data
             data_dict = self.tokenizer(
                 data,
                 max_length=512,
@@ -105,8 +121,6 @@ class SST2(GlueDataModule):
                 label.squeeze(0),
             )
 
-            # return data, label.squeeze(0)
-
         def __len__(self):
             return len(self.dset)
 
@@ -115,7 +129,7 @@ class SST2(GlueDataModule):
 class QNLI(GlueDataModule):
     """
     Data module for qnli dataset. Must initiate `name`
-    before __init__() for register the class.
+    before __init__() for registering the class.
     """
 
     name = "qnli"

@@ -1,5 +1,6 @@
 """
-Codes are borrowed from Huggingface (https://github.com/huggingface/transformers/blob/b020a736c374460af1b34267283f957988350630/src/transformers/optimization.py#L72)
+Some codes are borrowed from Huggingface (https://github.com/huggingface/transformers/\
+blob/b020a736c374460af1b34267283f957988350630/src/transformers/optimization.py#L72)
 """
 
 from torch.optim.lr_scheduler import LambdaLR

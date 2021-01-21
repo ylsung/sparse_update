@@ -36,7 +36,7 @@ if __name__ == "__main__":
     tokenizer = BertTokenizerFast.from_pretrained(args.bert_config)
     data_module = data_class(args.batch_size, args.num_workers, tokenizer)
 
-    model = module_class(args, args.bert_config, tokenizer)
+    model = module_class(args, args.bert_config)
 
     checkpoint_callback = ModelCheckpoint(monitor="val/acc", mode="max")
     # trainer = Trainer(max_epochs=3)
