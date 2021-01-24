@@ -208,3 +208,93 @@ class SST2Module(GLUEModule):
         file_name = f"{FILE_NAME_MAP[self.name]}.tsv"
         with open(file_name, "w") as record_file:
             record_file.write(out)
+
+
+@register
+class QNLIModule(GLUEModule):
+    """
+    LightningModule for the qnli dataset
+    """
+
+    name = "qnli"
+
+    def __init__(self, args, bert_config):
+        """
+        Args:
+            args: the config storing the hyperparameters
+            bert_config: config name for Huggingface BERT models
+
+        """
+        super().__init__(args, bert_config)
+
+
+@register
+class MNLI_MMModule(GLUEModule):
+    """
+    LightningModule for the mnli_mismatched dataset
+    """
+
+    name = "mnli_mismatched"
+
+    def __init__(self, args, bert_config):
+        """
+        Args:
+            args: the config storing the hyperparameters
+            bert_config: config name for Huggingface BERT models
+
+        """
+        super().__init__(args, bert_config)
+
+
+@register
+class RTEModule(GLUEModule):
+    """
+    LightningModule for the rte dataset
+    """
+
+    name = "rte"
+
+    def __init__(self, args, bert_config):
+        """
+        Args:
+            args: the config storing the hyperparameters
+            bert_config: config name for Huggingface BERT models
+
+        """
+        super().__init__(args, bert_config)
+
+
+@register
+class WNLIModule(GLUEModule):
+    """
+    LightningModule for the wnli dataset
+    """
+
+    name = "wnli"
+
+    def __init__(self, args, bert_config):
+        """
+        Args:
+            args: the config storing the hyperparameters
+            bert_config: config name for Huggingface BERT models
+
+        """
+        super().__init__(args, bert_config)
+
+
+@register
+class AXModule(GLUEModule):
+    """
+    LightningModule for the ax dataset
+    """
+
+    name = "ax"
+
+    def __init__(self, args, bert_config):
+        """
+        Args:
+            args: the config storing the hyperparameters
+            bert_config: config name for Huggingface BERT models
+
+        """
+        super().__init__(args, bert_config)
