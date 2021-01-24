@@ -5,9 +5,9 @@ from .register import register
 from datasets import load_dataset
 
 
-class GlueDataModule(LightningDataModule):
+class GLUEDataModule(LightningDataModule):
     """
-    PyTorch Lightning module for Glue dataset. Need to implement
+    PyTorch Lightning module for GLUE dataset. Need to implement
     `CustomDataset` in child classes.
     """
 
@@ -80,7 +80,7 @@ class GlueDataModule(LightningDataModule):
 
 
 @register
-class SST2(GlueDataModule):
+class SST2(GLUEDataModule):
     """
     Data module for sst2 dataset. Must initiate `name`
     before __init__() for registering the class.
@@ -126,7 +126,7 @@ class SST2(GlueDataModule):
 
 
 @register
-class QNLI(GlueDataModule):
+class QNLI(GLUEDataModule):
     """
     Data module for qnli dataset. Must initiate `name`
     before __init__() for registering the class.
