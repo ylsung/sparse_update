@@ -10,13 +10,12 @@ from sparse_update.utilities.optimization import get_scheduler
 FILE_NAME_MAP = {"sst2": "SST-2"}
 
 
-@register
-class SST2Module(LightningModule):
+class GLUEModule(LightningModule):
     """
-    LightningModule for the sst2 dataset
+    LightningModule for the GLUE dataset
     """
 
-    name = "sst2"
+    name: str
 
     def __init__(self, args, bert_config):
         """
@@ -27,7 +26,6 @@ class SST2Module(LightningModule):
         """
         super().__init__()
         self.args = args
-        self.model = BertForSequenceClassification.from_pretrained(bert_config)
 
     def on_train_epoch_start(self):
         # Initialize the metric module every epoch
@@ -40,6 +38,10 @@ class SST2Module(LightningModule):
     def on_test_epoch_start(self):
         # Initialize the metric module every epoch
         self.test_metric = load_metric("glue", self.name)
+
+    def logits_to_predictions(self, logits):
+        """Convert logits to predictions, which are the input of metric function"""
+        raise NotImplementedError
 
     def shared_step(self, batch, batch_idx, metric, mode="train"):
         input_ids, attention_mask, token_type_ids, labels = batch
@@ -60,7 +62,7 @@ class SST2Module(LightningModule):
         self.log(f"{mode}/loss", return_dict["loss"])
 
         # Save the computed metrics for this batch
-        predictions = torch.argmax(return_dict["logits"], -1)
+        predictions = self.logits_to_predictions(return_dict["logits"])
 
         metric.add_batch(predictions=predictions, references=labels)
 
@@ -92,7 +94,7 @@ class SST2Module(LightningModule):
         )
 
         # Store the predictions
-        predictions = torch.argmax(return_dict["logits"], -1)
+        predictions = self.logits_to_predictions(return_dict["logits"])
 
         return {"predictions": predictions}
 
@@ -108,24 +110,16 @@ class SST2Module(LightningModule):
     def validation_epoch_end(self, outputs):
         self.shared_epoch_end(outputs, self.val_metric, "val")
 
+    def save_tsv(self, outputs):
+        """Save the test outputs to tsv file"""
+        raise NotImplementedError
+
     def test_epoch_end(self, outputs):
         # After testing, we will extract all the predictions
         # and output them to a .tsv file. This file can be used
         # to test our model on glue server. Please refer to
         # https://gluebenchmark.com/faq for more details.
-        predictions = torch.cat([o["predictions"] for o in outputs], 0)
-
-        out = "index\tprediction\n"
-
-        predictions = predictions.cpu().numpy().tolist()
-        indices = list(range(len(predictions)))
-
-        for i, p in zip(indices, predictions):
-            out += f"{i}\t{p}\n"
-
-        file_name = f"{FILE_NAME_MAP[self.name]}.tsv"
-        with open(file_name, "w") as record_file:
-            record_file.write(out)
+        self.save_tsv(outputs)
 
     def configure_optimizers(self):
         # Separate the parameters into two groups. One used weight decay
@@ -176,3 +170,41 @@ class SST2Module(LightningModule):
         }
 
         return [optimizer], [scheduler]
+
+
+@register
+class SST2Module(GLUEModule):
+    """
+    LightningModule for the sst2 dataset
+    """
+
+    name = "sst2"
+
+    def __init__(self, args, bert_config):
+        """
+        Args:
+            args: the config storing the hyperparameters
+            bert_config: config name for Huggingface BERT models
+
+        """
+        super().__init__(args, bert_config)
+
+        self.model = BertForSequenceClassification.from_pretrained(bert_config)
+
+    def logits_to_predictions(self, logits):
+        return torch.argmax(logits, -1)
+
+    def save_tsv(self, outputs):
+        predictions = torch.cat([o["predictions"] for o in outputs], 0)
+
+        out = "index\tprediction\n"
+
+        predictions = predictions.cpu().numpy().tolist()
+        indices = list(range(len(predictions)))
+
+        for i, p in zip(indices, predictions):
+            out += f"{i}\t{p}\n"
+
+        file_name = f"{FILE_NAME_MAP[self.name]}.tsv"
+        with open(file_name, "w") as record_file:
+            record_file.write(out)
