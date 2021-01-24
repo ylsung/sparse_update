@@ -136,3 +136,55 @@ class QNLI(GLUEDataModule):
 
     def __init__(self, batch_size, num_workers, tokenizer):
         super(QNLI, self).__init__(batch_size, num_workers, tokenizer)
+
+
+@register
+class MNLI_MM(GLUEDataModule):
+    """
+    Data module for mnli_mismatched dataset. Must initiate `name`
+    before __init__() for registering the class.
+    """
+
+    name = "mnli_mismatched"
+
+    def __init__(self, batch_size, num_workers, tokenizer):
+        super(MNLI_MM, self).__init__(batch_size, num_workers, tokenizer)
+
+
+@register
+class RTE(GLUEDataModule):
+    """
+    Data module for rte dataset. Must initiate `name`
+    before __init__() for registering the class.
+    """
+
+    name = "rte"
+
+    def __init__(self, batch_size, num_workers, tokenizer):
+        super(RTE, self).__init__(batch_size, num_workers, tokenizer)
+
+
+@register
+class WNLI(GLUEDataModule):
+    """
+    Data module for wnli dataset. Must initiate `name`
+    before __init__() for registering the class.
+    """
+
+    name = "wnli"
+
+    def __init__(self, batch_size, num_workers, tokenizer):
+        super(WNLI, self).__init__(batch_size, num_workers, tokenizer)
+
+
+@register
+class AX(GLUEDataModule):
+    """
+    Data module for ax dataset. Must initiate `name`
+    before __init__() for registering the class.
+    """
+
+    name = "ax"
+
+    def __init__(self, batch_size, num_workers, tokenizer):
+        super(AX, self).__init__(batch_size, num_workers, tokenizer)
