@@ -179,6 +179,53 @@ class MNLI_MM(GLUEDataModule):
     def __init__(self, batch_size, num_workers, tokenizer):
         super(MNLI_MM, self).__init__(batch_size, num_workers, tokenizer)
 
+    def prepare_data(self):
+        load_dataset("glue", "mnli")
+
+    def setup(self, stage=None):
+        dataset = load_dataset("glue", "mnli")
+
+        self.train_dset, self.val_dset, self.test_dset = (
+            dataset["train"],
+            dataset["validation_mismatched"],
+            dataset["test_mismatched"],
+        )
+
+        # Create the datasets
+        self.train_dset = self.CustomDataset(self.train_dset, self.tokenizer)
+        self.val_dset = self.CustomDataset(self.val_dset, self.tokenizer)
+        self.test_dset = self.CustomDataset(self.test_dset, self.tokenizer)
+
+    class CustomDataset(Dataset):
+        def __init__(self, dset, tokenizer):
+            super().__init__()
+            self.dset = dset
+            self.tokenizer = tokenizer
+
+        def __getitem__(self, idx):
+            # Pad the tensor to max length to make data loaders be able to
+            # concatenate aggregated data
+            data_dict = self.tokenizer(
+                self.dset[idx]["premise"],
+                self.dset[idx]["hypothesis"],
+                max_length=512,
+                padding="max_length",
+                truncation=True,
+                return_tensors="pt",
+            )
+
+            label = torch.LongTensor([self.dset[idx]["label"]])
+
+            return (
+                data_dict["input_ids"].squeeze(0),
+                data_dict["attention_mask"].squeeze(0),
+                data_dict["token_type_ids"].squeeze(0),
+                label.squeeze(0),
+            )
+
+        def __len__(self):
+            return len(self.dset)
+
 
 @register
 class RTE(GLUEDataModule):
