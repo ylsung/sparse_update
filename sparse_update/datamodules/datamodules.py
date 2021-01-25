@@ -137,6 +137,35 @@ class QNLI(GLUEDataModule):
     def __init__(self, batch_size, num_workers, tokenizer):
         super(QNLI, self).__init__(batch_size, num_workers, tokenizer)
 
+    class CustomDataset(Dataset):
+        def __init__(self, dset, tokenizer):
+            super().__init__()
+            self.dset = dset
+            self.tokenizer = tokenizer
+
+        def __getitem__(self, idx):
+
+            data_dict = self.tokenizer(
+                self.dset[idx]["question"],
+                self.dset[idx]["sentence"],
+                max_length=512,
+                padding="max_length",
+                truncation=True,
+                return_tensors="pt",
+            )
+
+            label = torch.LongTensor([self.dset[idx]["label"]])
+
+            return (
+                data_dict["input_ids"].squeeze(0),
+                data_dict["attention_mask"].squeeze(0),
+                data_dict["token_type_ids"].squeeze(0),
+                label.squeeze(0),
+            )
+
+        def __len__(self):
+            return len(self.dset)
+
 
 @register
 class MNLI_MM(GLUEDataModule):

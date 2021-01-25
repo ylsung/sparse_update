@@ -7,7 +7,7 @@ from datasets import load_metric
 from sparse_update.utilities.optimization import get_scheduler
 
 # Map the module name to file name (.tsv file)
-FILE_NAME_MAP = {"sst2": "SST-2"}
+FILE_NAME_MAP = {"sst2": "SST-2", "qnli": "QNLI"}
 
 
 class GLUEModule(LightningModule):
@@ -226,6 +226,30 @@ class QNLIModule(GLUEModule):
 
         """
         super().__init__(args, bert_config)
+
+        self.model = BertForSequenceClassification.from_pretrained(bert_config)
+
+    def logits_to_predictions(self, logits):
+        return torch.argmax(logits, -1)
+
+    def save_tsv(self, outputs):
+        predictions = torch.cat([o["predictions"] for o in outputs], 0)
+
+        out = "index\tprediction\n"
+
+        predictions = predictions.cpu().numpy().tolist()
+        indices = list(range(len(predictions)))
+
+        label_classes = ["entailment", "not_entailment"]
+
+        predictions = [label_classes[p] for p in predictions]
+
+        for i, p in zip(indices, predictions):
+            out += f"{i}\t{p}\n"
+
+        file_name = f"{FILE_NAME_MAP[self.name]}.tsv"
+        with open(file_name, "w") as record_file:
+            record_file.write(out)
 
 
 @register
