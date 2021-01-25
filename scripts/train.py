@@ -21,6 +21,7 @@ def get_args():
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--bert_config", type=str, default="bert-base-cased")
     parser.add_argument("--gpus", type=str, default="0")
+    parser.add_argument("--tpus", type=int, default=0)
     parser.add_argument("--max_epochs", type=int, default=3)
     parser.add_argument("--num_warmup_steps", type=int, default=0)
 
@@ -44,12 +45,21 @@ if __name__ == "__main__":
     if not torch.cuda.is_available():
         args.gpus = 0
 
-    trainer = Trainer(
-        gpus=args.gpus,
-        max_epochs=args.max_epochs,
-        callbacks=[checkpoint_callback],
-        gradient_clip_val=args.max_grad_norm,
-    )
+    if args.tpus != 0:
+        trainer = Trainer(
+            tpu_cores=args.tpus,
+            max_epochs=args.max_epochs,
+            callbacks=[checkpoint_callback],
+            gradient_clip_val=args.max_grad_norm,
+        )
+    else:
+        trainer = Trainer(
+            gpus=args.gpus,
+            max_epochs=args.max_epochs,
+            callbacks=[checkpoint_callback],
+            gradient_clip_val=args.max_grad_norm,
+        )
+
     trainer.fit(model, data_module)
 
     trainer.test(datamodule=data_module)
