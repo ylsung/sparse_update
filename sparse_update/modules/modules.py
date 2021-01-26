@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn.functional as F
 from transformers import BertForSequenceClassification
@@ -11,6 +12,7 @@ FILE_NAME_MAP = {
     "sst2": "SST-2",
     "qnli": "QNLI",
     "mnli_mismatched": "MNLI-mm",
+    "mnli": ["MNLI-m", "MNLI-mm", "AX"],
     "rte": "RTE",
 }
 
@@ -297,6 +299,91 @@ class MNLI_MMModule(GLUEModule):
             out += f"{i}\t{p}\n"
 
         file_name = f"{FILE_NAME_MAP[self.name]}.tsv"
+        with open(file_name, "w") as record_file:
+            record_file.write(out)
+
+
+@register
+class MNLI(GLUEModule):
+    """
+    LightningModule for the mnli dataset
+    """
+
+    name = "mnli"
+
+    def __init__(self, args, bert_config):
+        """
+        Args:
+            args: the config storing the hyperparameters
+            bert_config: config name for Huggingface BERT models
+
+        """
+        super().__init__(args, bert_config)
+
+        self.model = BertForSequenceClassification.from_pretrained(
+            bert_config, num_labels=3
+        )
+
+    def on_validation_epoch_start(self):
+        # Initialize the metric module every epoch
+        self.val_metric = [
+            load_metric("glue", self.name) for _ in self.val_dataloader()
+        ]
+
+    def on_test_epoch_start(self):
+        # Initialize the metric module every epoch
+        self.test_metric = [
+            load_metric("glue", self.name) for _ in self.test_dataloader()
+        ]
+
+    def validation_step(self, batch, batch_idx, dataloader_idx):
+        return self.shared_step(
+            batch, batch_idx, self.val_metric[dataloader_idx], "val"
+        )
+
+    def test_step(self, batch, batch_idx, dataloader_idx):
+        return super().test_step(batch, batch_idx)
+
+    def validation_epoch_end(self, outputs):
+        acc_list = []
+        for metric in self.val_metric:
+            acc = metric.compute()["accuracy"]
+
+            acc_list.append(acc)
+
+        acc = np.mean(acc_list)
+        self.log("val/acc", acc)
+
+    def test_epoch_end(self, outputs):
+        # After testing, we will extract all the predictions
+        # and output them to a .tsv file. This file can be used
+        # to test our model on glue server. Please refer to
+        # https://gluebenchmark.com/faq for more details.
+
+        file_names = FILE_NAME_MAP[self.name]
+
+        for output, file_name in zip(outputs, file_names):
+            self.save_tsv(output, file_name)
+
+    def logits_to_predictions(self, logits):
+        return torch.argmax(logits, -1)
+
+    def save_tsv(self, outputs, file_name):
+        predictions = torch.cat([o["predictions"] for o in outputs], 0)
+
+        out = "index\tprediction\n"
+
+        predictions = predictions.cpu().numpy().tolist()
+        indices = list(range(len(predictions)))
+
+        label_classes = ["entailment", "neutral", "contradiction"]
+
+        predictions = [label_classes[p] for p in predictions]
+
+        for i, p in zip(indices, predictions):
+            out += f"{i}\t{p}\n"
+
+        file_name = f"{file_name}.tsv"
         with open(file_name, "w") as record_file:
             record_file.write(out)
 
