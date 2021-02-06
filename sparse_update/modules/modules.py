@@ -11,7 +11,6 @@ from sparse_update.utilities.optimization import get_scheduler
 FILE_NAME_MAP = {
     "sst2": "SST-2",
     "qnli": "QNLI",
-    "mnli_mismatched": "MNLI-mm",
     "mnli": ["MNLI-m", "MNLI-mm", "AX"],
     "rte": "RTE",
 }
@@ -53,14 +52,6 @@ class GLUEModule(LightningModule):
     def shared_step(self, batch, batch_idx, metric, mode="train"):
         input_ids, attention_mask, token_type_ids, labels = batch
 
-        # Truncate the data to maximum length within this batch
-        # to save memories and speed up traning
-        max_len = attention_mask.sum(-1).max()
-
-        input_ids = input_ids[:, :max_len]
-        attention_mask = attention_mask[:, :max_len]
-        token_type_ids = token_type_ids[:, :max_len]
-
         # Compute the loss and logits
         return_dict = self.model(
             input_ids, attention_mask, token_type_ids, return_dict=True, labels=labels
@@ -86,14 +77,6 @@ class GLUEModule(LightningModule):
 
     def test_step(self, batch, batch_idx):
         input_ids, attention_mask, token_type_ids, labels = batch
-
-        # Truncate the data to maximum length within this batch
-        # to save memories and speed up traning
-        max_len = attention_mask.sum(-1).max()
-
-        input_ids = input_ids[:, :max_len]
-        attention_mask = attention_mask[:, :max_len]
-        token_type_ids = token_type_ids[:, :max_len]
 
         # Only compute the logits for test set
         return_dict = self.model(
@@ -260,50 +243,6 @@ class QNLIModule(GLUEModule):
 
 
 @register
-class MNLI_MMModule(GLUEModule):
-    """
-    LightningModule for the mnli_mismatched dataset
-    """
-
-    name = "mnli_mismatched"
-
-    def __init__(self, args, bert_config):
-        """
-        Args:
-            args: the config storing the hyperparameters
-            bert_config: config name for Huggingface BERT models
-
-        """
-        super().__init__(args, bert_config)
-
-        self.model = BertForSequenceClassification.from_pretrained(
-            bert_config, num_labels=3
-        )
-
-    def logits_to_predictions(self, logits):
-        return torch.argmax(logits, -1)
-
-    def save_tsv(self, outputs):
-        predictions = torch.cat([o["predictions"] for o in outputs], 0)
-
-        out = "index\tprediction\n"
-
-        predictions = predictions.cpu().numpy().tolist()
-        indices = list(range(len(predictions)))
-
-        label_classes = ["entailment", "neutral", "contradiction"]
-
-        predictions = [label_classes[p] for p in predictions]
-
-        for i, p in zip(indices, predictions):
-            out += f"{i}\t{p}\n"
-
-        file_name = f"{FILE_NAME_MAP[self.name]}.tsv"
-        with open(file_name, "w") as record_file:
-            record_file.write(out)
-
-
-@register
 class MNLI(GLUEModule):
     """
     LightningModule for the mnli dataset
@@ -437,24 +376,6 @@ class WNLIModule(GLUEModule):
     """
 
     name = "wnli"
-
-    def __init__(self, args, bert_config):
-        """
-        Args:
-            args: the config storing the hyperparameters
-            bert_config: config name for Huggingface BERT models
-
-        """
-        super().__init__(args, bert_config)
-
-
-@register
-class AXModule(GLUEModule):
-    """
-    LightningModule for the ax dataset
-    """
-
-    name = "ax"
 
     def __init__(self, args, bert_config):
         """
