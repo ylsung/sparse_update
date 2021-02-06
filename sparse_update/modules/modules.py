@@ -243,7 +243,7 @@ class QNLIModule(GLUEModule):
 
 
 @register
-class MNLI(GLUEModule):
+class MNLIModule(GLUEModule):
     """
     LightningModule for the mnli dataset
     """
