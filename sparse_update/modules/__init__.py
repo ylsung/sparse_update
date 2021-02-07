@@ -1,3 +1,3 @@
 from .register import PLMODULE_REGISTER
 
-from .modules import SST2Module
+from .modules import SST2Module, QNLIModule, MNLIModule, RTEModule

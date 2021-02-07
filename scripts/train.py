@@ -23,6 +23,7 @@ def get_args():
     parser.add_argument("--gpus", type=str, default="0")
     parser.add_argument("--max_epochs", type=int, default=3)
     parser.add_argument("--num_warmup_steps", type=int, default=0)
+    parser.add_argument("--max_seq_length", type=int, default=128)
 
     return parser.parse_args()
 
@@ -34,7 +35,9 @@ if __name__ == "__main__":
     module_class = PLMODULE_REGISTER[args.task]
 
     tokenizer = BertTokenizerFast.from_pretrained(args.bert_config)
-    data_module = data_class(args.batch_size, args.num_workers, tokenizer)
+    data_module = data_class(
+        args.batch_size, args.max_seq_length, args.num_workers, tokenizer
+    )
 
     model = module_class(args, args.bert_config)
 

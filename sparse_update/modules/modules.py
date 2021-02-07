@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn.functional as F
 from transformers import BertForSequenceClassification
@@ -7,7 +8,12 @@ from datasets import load_metric
 from sparse_update.utilities.optimization import get_scheduler
 
 # Map the module name to file name (.tsv file)
-FILE_NAME_MAP = {"sst2": "SST-2"}
+FILE_NAME_MAP = {
+    "sst2": "SST-2",
+    "qnli": "QNLI",
+    "mnli": ["MNLI-m", "MNLI-mm", "AX"],
+    "rte": "RTE",
+}
 
 
 class GLUEModule(LightningModule):
@@ -46,14 +52,6 @@ class GLUEModule(LightningModule):
     def shared_step(self, batch, batch_idx, metric, mode="train"):
         input_ids, attention_mask, token_type_ids, labels = batch
 
-        # Truncate the data to maximum length within this batch
-        # to save memories and speed up traning
-        max_len = attention_mask.sum(-1).max()
-
-        input_ids = input_ids[:, :max_len]
-        attention_mask = attention_mask[:, :max_len]
-        token_type_ids = token_type_ids[:, :max_len]
-
         # Compute the loss and logits
         return_dict = self.model(
             input_ids, attention_mask, token_type_ids, return_dict=True, labels=labels
@@ -79,14 +77,6 @@ class GLUEModule(LightningModule):
 
     def test_step(self, batch, batch_idx):
         input_ids, attention_mask, token_type_ids, labels = batch
-
-        # Truncate the data to maximum length within this batch
-        # to save memories and speed up traning
-        max_len = attention_mask.sum(-1).max()
-
-        input_ids = input_ids[:, :max_len]
-        attention_mask = attention_mask[:, :max_len]
-        token_type_ids = token_type_ids[:, :max_len]
 
         # Only compute the logits for test set
         return_dict = self.model(
@@ -208,3 +198,190 @@ class SST2Module(GLUEModule):
         file_name = f"{FILE_NAME_MAP[self.name]}.tsv"
         with open(file_name, "w") as record_file:
             record_file.write(out)
+
+
+@register
+class QNLIModule(GLUEModule):
+    """
+    LightningModule for the qnli dataset
+    """
+
+    name = "qnli"
+
+    def __init__(self, args, bert_config):
+        """
+        Args:
+            args: the config storing the hyperparameters
+            bert_config: config name for Huggingface BERT models
+
+        """
+        super().__init__(args, bert_config)
+
+        self.model = BertForSequenceClassification.from_pretrained(bert_config)
+
+    def logits_to_predictions(self, logits):
+        return torch.argmax(logits, -1)
+
+    def save_tsv(self, outputs):
+        predictions = torch.cat([o["predictions"] for o in outputs], 0)
+
+        out = "index\tprediction\n"
+
+        predictions = predictions.cpu().numpy().tolist()
+        indices = list(range(len(predictions)))
+
+        label_classes = ["entailment", "not_entailment"]
+
+        predictions = [label_classes[p] for p in predictions]
+
+        for i, p in zip(indices, predictions):
+            out += f"{i}\t{p}\n"
+
+        file_name = f"{FILE_NAME_MAP[self.name]}.tsv"
+        with open(file_name, "w") as record_file:
+            record_file.write(out)
+
+
+@register
+class MNLIModule(GLUEModule):
+    """
+    LightningModule for the mnli dataset
+    """
+
+    name = "mnli"
+
+    def __init__(self, args, bert_config):
+        """
+        Args:
+            args: the config storing the hyperparameters
+            bert_config: config name for Huggingface BERT models
+
+        """
+        super().__init__(args, bert_config)
+
+        self.model = BertForSequenceClassification.from_pretrained(
+            bert_config, num_labels=3
+        )
+
+    def on_validation_epoch_start(self):
+        # Initialize the metric module every epoch
+        self.val_metric = [
+            load_metric("glue", self.name) for _ in self.val_dataloader()
+        ]
+
+    def on_test_epoch_start(self):
+        # Initialize the metric module every epoch
+        self.test_metric = [
+            load_metric("glue", self.name) for _ in self.test_dataloader()
+        ]
+
+    def validation_step(self, batch, batch_idx, dataloader_idx):
+        return self.shared_step(
+            batch, batch_idx, self.val_metric[dataloader_idx], "val"
+        )
+
+    def test_step(self, batch, batch_idx, dataloader_idx):
+        return super().test_step(batch, batch_idx)
+
+    def validation_epoch_end(self, outputs):
+        acc_list = []
+        for metric in self.val_metric:
+            acc = metric.compute()["accuracy"]
+
+            acc_list.append(acc)
+
+        acc = np.mean(acc_list)
+        self.log("val/acc", acc)
+
+    def test_epoch_end(self, outputs):
+        # After testing, we will extract all the predictions
+        # and output them to a .tsv file. This file can be used
+        # to test our model on glue server. Please refer to
+        # https://gluebenchmark.com/faq for more details.
+
+        file_names = FILE_NAME_MAP[self.name]
+
+        for output, file_name in zip(outputs, file_names):
+            self.save_tsv(output, file_name)
+
+    def logits_to_predictions(self, logits):
+        return torch.argmax(logits, -1)
+
+    def save_tsv(self, outputs, file_name):
+        predictions = torch.cat([o["predictions"] for o in outputs], 0)
+
+        out = "index\tprediction\n"
+
+        predictions = predictions.cpu().numpy().tolist()
+        indices = list(range(len(predictions)))
+
+        label_classes = ["entailment", "neutral", "contradiction"]
+
+        predictions = [label_classes[p] for p in predictions]
+
+        for i, p in zip(indices, predictions):
+            out += f"{i}\t{p}\n"
+
+        file_name = f"{file_name}.tsv"
+        with open(file_name, "w") as record_file:
+            record_file.write(out)
+
+
+@register
+class RTEModule(GLUEModule):
+    """
+    LightningModule for the rte dataset
+    """
+
+    name = "rte"
+
+    def __init__(self, args, bert_config):
+        """
+        Args:
+            args: the config storing the hyperparameters
+            bert_config: config name for Huggingface BERT models
+
+        """
+        super().__init__(args, bert_config)
+
+        self.model = BertForSequenceClassification.from_pretrained(bert_config)
+
+    def logits_to_predictions(self, logits):
+        return torch.argmax(logits, -1)
+
+    def save_tsv(self, outputs):
+        predictions = torch.cat([o["predictions"] for o in outputs], 0)
+
+        out = "index\tprediction\n"
+
+        predictions = predictions.cpu().numpy().tolist()
+        indices = list(range(len(predictions)))
+
+        label_classes = ["entailment", "not_entailment"]
+
+        predictions = [label_classes[p] for p in predictions]
+
+        for i, p in zip(indices, predictions):
+            out += f"{i}\t{p}\n"
+
+        file_name = f"{FILE_NAME_MAP[self.name]}.tsv"
+        with open(file_name, "w") as record_file:
+            record_file.write(out)
+
+
+@register
+class WNLIModule(GLUEModule):
+    """
+    LightningModule for the wnli dataset
+    """
+
+    name = "wnli"
+
+    def __init__(self, args, bert_config):
+        """
+        Args:
+            args: the config storing the hyperparameters
+            bert_config: config name for Huggingface BERT models
+
+        """
+        super().__init__(args, bert_config)
